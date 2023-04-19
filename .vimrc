@@ -1,96 +1,132 @@
-" TEXT FORMATTING
+" backspace for ondemand
+set backspace=indent,eol,start
+
+" syntax highlighting
+syntax enable
+source ~/.vim/syntax/reason.vim
+
+" plugins https://github.com/junegunn/vim-plug
+call plug#begin('~/.vim/plugged')
+Plug 'autozimu/LanguageClient-neovim', {
+    \ 'branch': 'next',
+    \ 'do': 'bash install.sh',
+    \ }
+Plug 'prettier/vim-prettier', { 
+    \ 'do': 'yarn install --frozen-lockfile --production',
+    \ }
+"Plug 'prabirshrestha/vim-lsp'
+"Plug 'mattn/vim-lsp-settings'
+call plug#end()
+
+"if executable('flow')
+"  au User lsp_setup call lsp#register_server({
+"    \ 'name': 'flow',
+"    \ 'cmd': {server_info->['flow', 'lsp']},
+"    \ 'allowlist': ['javascript'],
+"    \ })
+"endif
+"
+"if executable('hh_client')
+"  au User lsp_setup call lsp#register_server({
+"    \ 'name': 'hh_client',
+"    \ 'cmd': {server_info->['hh_client', 'lsp']},
+"    \ 'allowlist': ['php'],
+"    \ })
+"endif
+"
+"if executable('ocamllsp')
+"  au User lsp_setup call lsp#register_server({
+"    \ 'name': 'ocamllsp',
+"    \ 'cmd': {server_info->['ocamllsp']},
+"    \ 'allowlist': ['reason'],
+"    \ })
+"elseif executable('ocaml-language-server')
+"  au User lsp_setup call lsp#register_server({
+"    \ 'name': 'ocaml-language-server',
+"    \ 'cmd': {server_info->['ocaml-language-server', '--stdio']},
+"    \ 'allowlist': ['reason'],
+"    \ })
+"endif
+"
+"nmap <silent> tt <plug>(lsp-hover)
+"nmap <silent> gd <plug>(lsp-definition)
+"nmap <silent> ff :LspDocumentFormat<CR>
+"
+"augroup lspcmds
+"  " remove all previous commands from this group
+"  autocmd!
+"
+"  " format reason files on write
+"  autocmd BufWritePre *.re,*.rei :LspDocumentFormatSync
+"augroup END
+"
+"let g:lsp_diagnostics_echo_cursor = 1
+
+" language server protocol clients
+let g:LanguageClient_serverCommands = {
+  \ 'javascript': ['yarn', 'flow', 'lsp', '--from', 'vim'],
+  \ 'php': ['hh', 'lsp', '--from', 'vim'],
+  \ 'ocaml': ['ocamllsp'],
+  \ 'reason': ['ocamllsp'],
+  \ 'rust': ['rls'],
+  \ }
+"\ 'ocaml': ['ocaml-language-server', '--stdio'],
+"\ 'reason': ['ocaml-language-server', '--stdio'],
+
+nmap <silent> tt <Plug>(lcn-hover)
+nmap <silent> gd <Plug>(lcn-definition)
+nmap <silent> ff <Plug>(lcn-format)
+nmap <silent> ca <Plug>(lcn-code-action)
+
+augroup language_specific_stuff
+  " remove all previous commands from this group
+  autocmd!
+  " format reason files on write
+  autocmd BufWritePre *.re,*.rei :call LanguageClient#textDocument_formatting_sync()
+  " es6 imports
+  autocmd FileType javascript let @i = "vey:0\<cr>/import [^t]\<cr>koimport jkpA from 'jkpA';jkbb*"
+  " the flow language server doesn't format, so call prettier from ff instead
+  autocmd FileType javascript nunmap ff
+  autocmd FileType javascript nmap <silent> ff :Prettier<CR>
+augroup END
+
+" show row numbers
+set number
+
+" go from insert->normal mode using "jk"
+inoremap jk <esc>
+
+" switch between buffers without saving
+set hidden
+
+" set tabs to 2 spaces
+set shiftwidth=2
+set tabstop=2
+set expandtab
+
+" mouse clicks and scrolling
 set mouse=a
 
-" delete trailing whitespace when saving files
-fun! <SID>StripTrailingWhitespaces()
-    let l = line(".")
-    let c = col(".")
-    %s/\s\+$//e
-    call cursor(l, c)
-endfun
-autocmd BufWritePre * :call <SID>StripTrailingWhitespaces()
+" make vertical splits open on the right
+set splitright
 
-" tabs
-set expandtab " insert spaces instead of tab character
-set shiftwidth=2 " `>>` will tab 2 spaces
-set tabstop=2 " `tab` will tab 2 spaces
+" don't make swapfiles
+set swapfile!
 
-" formatting
-"set textwidth=80 " line character limit (for wrapping)
-"set formatoptions=cq " wrap when writing comments
-
-
-
-
-
-""" NAVIGATION
-
-" kill the arrow keys!
-" (forces you to learn hjkl, and switch to normal mode for navigation)
-vnoremap <Left>  <NOP>
-vnoremap <Right> <NOP>
-vnoremap <Up>    <NOP>
-vnoremap <Down>  <NOP>
-inoremap <Left>  <NOP>
-inoremap <Right> <NOP>
-inoremap <Up>    <NOP>
-inoremap <Down>  <NOP>
-nnoremap <Left>  <NOP>
-nnoremap <Right> <NOP>
-nnoremap <Up>    <NOP>
-nnoremap <Down>  <NOP>
-
-" Wrap pane navigation
-function! s:GotoNextWindow( direction, count )
-  let l:prevWinNr = winnr()
-  execute a:count . 'wincmd' a:direction
-  return winnr() != l:prevWinNr
-endfunction
-
-function! s:JumpWithWrap( direction, opposite )
-  if ! s:GotoNextWindow(a:direction, v:count1)
-    call s:GotoNextWindow(a:opposite, 999)
-  endif
-endfunction
-
-nnoremap <silent> <C-w>h :<C-u>call <SID>JumpWithWrap('h', 'l')<CR>
-nnoremap <silent> <C-w>j :<C-u>call <SID>JumpWithWrap('j', 'k')<CR>
-nnoremap <silent> <C-w>k :<C-u>call <SID>JumpWithWrap('k', 'j')<CR>
-nnoremap <silent> <C-w>l :<C-u>call <SID>JumpWithWrap('l', 'h')<CR>
-
-" Pane swapping
-function! MarkWindowSwap()
-    let g:markedWinNum = winnr()
-endfunction
-
-function! DoWindowSwap()
-    "Mark destination
-    let curNum = winnr()
-    let curBuf = bufnr( "%" )
-    exe g:markedWinNum . "wincmd w"
-    "Switch to source and shuffle dest->source
-    let markedBuf = bufnr( "%" )
-    "Hide and open so that we aren't prompted and keep history
-    exe 'hide buf' curBuf
-    "Switch to dest and shuffle source->dest
-    exe curNum . "wincmd w"
-    "Hide and open so that we aren't prompted and keep history
-    exe 'hide buf' markedBuf
-endfunction
-
-noremap <silent> <leader>sw :call MarkWindowSwap()<CR>
-noremap <silent> <leader>rw :call DoWindowSwap()<CR>
-
-
-
-
-
-""" LOOK & FEEL
-set number
-syntax on
-set background=dark
-colorscheme monokai
+augroup vimrc
+  " remove all previous commands from this group
+  autocmd!
+  " execute vimrc after writing it
+  autocmd BufWritePost .vimrc source $MYVIMRC
+augroup END
 
 set statusline=%f%=\ \ \ %{&fo}\ \ %c,%l\ /\ %L
-set cursorline " underline the line that the cursor is on
 set laststatus=2 " always show statusline
+
+" Prevent screen from flashing while ssh
+" https://stackoverflow.com/questions/9935345/vim-flashing-issue/9935748
+set visualbell t_vb=    " turn off error beep/flash
+set novisualbell        " turn off visual bell
+
+" keep gutter open
+:set signcolumn=yes
